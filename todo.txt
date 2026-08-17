@@ -1,0 +1,4 @@
+1) lose conditions
+2) next piece?
+3) fix input lag - thread and feeder.
+

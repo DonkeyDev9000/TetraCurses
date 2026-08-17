@@ -1,0 +1,9 @@
+cmake-build-debug
+cmake-build-webdebug
+**/.DS_Store
+.DS_Store
+*.tiled-session
+.idea
+*.blend1
+hold
+game

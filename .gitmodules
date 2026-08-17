@@ -1,0 +1,3 @@
+[submodule "extern/TetraCore"]
+	path = extern/TetraCore
+	url = https://github.com/DonkeyDev9000/TetraCore.git
