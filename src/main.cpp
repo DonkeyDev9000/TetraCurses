@@ -1,47 +1,42 @@
-#include <iostream>
+#include <memory>
 
-#include "tetris/Tetra.h"
-#include "tetris/TetraWorldImpl.h"
+#include "tetra/Tetra.h"
 #include "curses/TetraCurses.h"
+
+#include <iostream>
 
 int main() {
     static constexpr std::chrono::milliseconds updatesPerSecond{500};
-    static constexpr int sMaxX{10};
-    static constexpr int sMaxY{18};
 
-    const auto board = std::make_shared<TetraBoard>(sMaxX, sMaxY);
-
-    std::shared_ptr<CursesTetraBoardRenderer> rederer{};
-    rederer = std::make_shared<CursesTetraBoardRenderer>(sMaxX, sMaxY);
-
-    board->initialize();
+    const auto board = TetraWorldInterface::create();
+    const auto rederer = std::make_shared<CursesTetraBoardRenderer>(*board);
 
     auto lastStep = std::chrono::system_clock::now();
-    bool inputHandled{true};
+    bool updateUi{true};
     do {
         const auto now = std::chrono::system_clock::now();
 
-        bool hardPush{false};
-        if (rederer) {
-            const auto inputsVec = rederer->getInputs();
-            // TODO We need to split up the inputs for the hardpush
-            if (!inputsVec.empty()) {
-                inputHandled = true;
-                board->inputReceived(inputsVec);
-            }
+        if (auto inputsVec = rederer->getInputs();
+            !inputsVec.empty()) {
+            board->inputReceived(inputsVec);
+            updateUi = true;
         }
 
-        if (hardPush || (now - lastStep) >= updatesPerSecond) {
+        if ((now - lastStep) >= updatesPerSecond) {
             lastStep = now;
-            board->worldStep(WorldStepParams{hardPush});
-            inputHandled = true;
+            board->worldStep(rederer->hardPushPressed());
+            updateUi = true;
         }
 
-        if (rederer && inputHandled) {
+        if (updateUi) {
             rederer->render(board->getCurrentWorld());
         }
-        inputHandled = false;
-    } while (true);
+        updateUi = false;
 
+        if (board->isGameOver()) {
+            rederer->stopThread();
+            break;
+        }
+    } while (true);
     return 0;
 }

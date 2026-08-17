@@ -2,14 +2,16 @@
 
 #include "ncurses.h"
 
-CursesTetraBoardRenderer::CursesTetraBoardRenderer(int maxX, int maxY) :
-    mMaxX(maxX),
-    mMaxY(maxY) {
-
+CursesTetraBoardRenderer::CursesTetraBoardRenderer(const TetraWorldInterface &world) :
+    mMaxX(world.getWidth()),
+    mMaxY(world.getHeight()) {
     mProcessingThread = std::thread{&CursesTetraBoardRenderer::startThread, this};
 }
 CursesTetraBoardRenderer::~CursesTetraBoardRenderer() {
     mProcessingThread.join();
+}
+void CursesTetraBoardRenderer::stopThread() {
+    mIsRunning = false;
 }
 void CursesTetraBoardRenderer::startThread() {
     initscr();
@@ -25,6 +27,9 @@ void CursesTetraBoardRenderer::startThread() {
                 auto wLock = mInputSync.wlock();
                 wLock->emplace_back(*translatedOpt);
             }
+            if (input == KEY_UP) {
+                mHardPush = true;
+            }
         }
 
         std::vector<TetraBlock> toRender{};
@@ -37,7 +42,7 @@ void CursesTetraBoardRenderer::startThread() {
             privateRender(toRender);
         }
 
-    } while (true); // todo process "quit"
+    } while (mIsRunning);
     // todo make sure we have enough screen room to print our board.
 }
 void CursesTetraBoardRenderer::render(std::vector<TetraBlock> currentBoard) {
@@ -53,10 +58,13 @@ std::vector<TetraInput> CursesTetraBoardRenderer::getInputs() {
 
     return retVal;
 }
+bool CursesTetraBoardRenderer::hardPushPressed() {
+    auto retVal = mHardPush;
+    mHardPush = false;
+    return retVal;
+}
 std::optional<TetraInput> CursesTetraBoardRenderer::translateInput(int ch) const {
     switch (ch) {
-        case KEY_UP:
-            return hardPush;
         case KEY_LEFT:
             return moveLeft;
         case KEY_RIGHT:
@@ -69,9 +77,10 @@ std::optional<TetraInput> CursesTetraBoardRenderer::translateInput(int ch) const
         case int{'e'}:
         case int{'E'}:
             return spinRight;
-    }
 
-    return std::nullopt;
+        default:
+            return std::nullopt;
+    }
 }
 void CursesTetraBoardRenderer::privateRender(const std::vector<TetraBlock> &currentBoard) const {
     for (int x = 0; x < mMaxX; x++) {
@@ -80,14 +89,10 @@ void CursesTetraBoardRenderer::privateRender(const std::vector<TetraBlock> &curr
         }
     }
 
-    for (const auto &block : currentBoard) {
-        const auto &x = block.getX();
-        const auto &y = block.getY();
+    for (const auto &[x, y] : currentBoard) {
         if (x >= 0 && x < mMaxX && y >= 0 && y < mMaxY) {
             mvprintw(y, x, "X");
         }
     }
-    mvprintw(mMaxY + 1, mMaxX + 1, "a");
-
     refresh();
 }
